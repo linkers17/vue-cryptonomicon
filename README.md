@@ -17,3 +17,11 @@ npm run build
 
 ### Customize configuration
 See [Configuration Reference](https://cli.vuejs.org/config/).
+
+### Описание
+
+Проект по курсу Ильи Климова
+
+### API
+
+В проекте используется [API](https://min-api.cryptocompare.com/).
