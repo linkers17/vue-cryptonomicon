@@ -109,7 +109,7 @@
               {{ t.name }} - USD
             </dt>
             <dd class="mt-1 text-3xl font-semibold text-gray-900">
-              {{ t.price }}
+              {{ formatPrice(t.price) }}
             </dd>
           </div>
           <div class="w-full border-t border-gray-200"></div>
@@ -178,6 +178,8 @@
 </template>
 
 <script>
+
+import { subscribeToTicker, unsubscribeFromTicker } from "@/api";
 
 export default ({
   data () {
@@ -256,8 +258,9 @@ export default ({
         this.ticker = '';
         this.error = false;
         this.filter = '';
-
-        this.subscribeToUpdates(ticker.name);
+        subscribeToTicker(ticker.name, newPrice => {
+          this.updateTicker(ticker.name, newPrice)
+        });
 
       } else {
         this.error = true;
@@ -268,10 +271,10 @@ export default ({
     },
     remove(name) {
       this.tickers = this.tickers.filter(ticker => ticker.name !== name);
-      localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
       if (this.sel && this.sel.name === name) {
         this.sel = null;
       }
+      unsubscribeFromTicker(name);
     },
     select(ticker) {
       this.sel = ticker;
@@ -279,17 +282,18 @@ export default ({
     close() {
       this.sel = null;
     },
-    subscribeToUpdates(tickerName) {
-      setInterval(async () => {
-        const req = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=USD&api_key=c5b4b0e5148c95f627ed0696c04a3b84a2378071f66cc509ac61aa6f2ca0adc8`);
-        const data = await req.json();
-
-        this.tickers.find(t => t.name === tickerName).price = data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
-
-        if (this.sel && this.sel.name === tickerName) {
-          this.graph.push(data.USD);
-        }
-      }, 5000);
+    formatPrice(price) {
+      if (price === '-') {
+        return '-';
+      }
+      return price > 1 ? price.toFixed(2) : price.toPrecision(2);
+    },
+    updateTicker(tickerName, price) {
+      this.tickers
+      .filter(t => t.name === tickerName)
+      .forEach(t => {
+        t.price = price
+      });
     }
   },
   watch: {
@@ -337,9 +341,14 @@ export default ({
     }
 
     const tickersData = localStorage.getItem('cryptonomicon-list');
+
     if (tickersData) {
       this.tickers = JSON.parse(tickersData);
-      this.tickers.forEach(el => this.subscribeToUpdates(el.name));
+      this.tickers.forEach(ticker => {
+        subscribeToTicker(ticker.name, newPrice => {
+          this.updateTicker(ticker.name, newPrice)
+        });
+      });
     }
   }
 })
