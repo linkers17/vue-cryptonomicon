@@ -100,7 +100,7 @@
         <div
           class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
           :class="{'border-4': sel === t}"
-          v-for="t in filtredTickers"
+          v-for="t in filtredTickersPage"
           :key="t.name"
           @click="select(t)"
         >
@@ -189,7 +189,6 @@ export default ({
       page: 1,
       countTickersPage: 6,
       filter: '',
-      hasNextPage: true,
       ticker: '',
       tickers: [],
       graph: []
@@ -199,6 +198,10 @@ export default ({
     normalizeGraph() {
       const maxValue = Math.max(...this.graph);
       const minValue = Math.min(...this.graph);
+
+      if (maxValue === minValue) {
+        return this.graph.map(() => 50);
+      }
 
       return this.graph.map(price => 5 + ((price - minValue) * 95) / (maxValue - minValue));
     },
@@ -216,14 +219,26 @@ export default ({
       }
       return hint;
     },
+    startIndex() {
+      return this.countTickersPage * (this.page - 1);
+    },
+    endIndex() {
+      return this.countTickersPage * this.page;
+    },
+    hasNextPage() {
+      return this.filtredTickers.length > this.endIndex;
+    },
     filtredTickers() {
-      const start = this.countTickersPage * (this.page - 1);
-      const end = this.countTickersPage * this.page;
-      const filtredTickers = this.tickers.filter(ticker => ticker.name.includes(this.filter.toUpperCase()));
-
-      this.hasNextPage = filtredTickers.length > end;
-
-      return filtredTickers.slice(start, end);
+      return this.tickers.filter(ticker => ticker.name.includes(this.filter.toUpperCase()));
+    },
+    filtredTickersPage() {
+      return this.filtredTickers.slice(this.startIndex, this.endIndex);
+    },
+    pageStateOptions() {
+      return {
+        filter: this.filter,
+        page: this.page
+      }
     }
   },
   methods: {
@@ -237,12 +252,10 @@ export default ({
           name: tickerName.toUpperCase(),
           price: '-'
         };
-        this.tickers.push(ticker);
+        this.tickers = [...this.tickers, ticker];
         this.ticker = '';
         this.error = false;
         this.filter = '';
-
-        localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
 
         this.subscribeToUpdates(ticker.name);
 
@@ -262,7 +275,6 @@ export default ({
     },
     select(ticker) {
       this.sel = ticker;
-      this.graph = [];
     },
     close() {
       this.sel = null;
@@ -283,18 +295,23 @@ export default ({
   watch: {
     filter() {
       this.page = 1;
-
+    },
+    filtredTickersPage() {
+      if (this.filtredTickersPage.length === 0 && this.page > 1) {
+        this.page -= 1;
+      }
+    },
+    tickers() {
+      localStorage.setItem('cryptonomicon-list', JSON.stringify(this.tickers));
+    },
+    sel() {
+      this.graph = [];
+    },
+    pageStateOptions(value) {
       window.history.pushState(
         null,
         document.title,
-        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
-      );
-    },
-    page() {
-      window.history.pushState(
-      null,
-      document.title,
-      `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+        `${window.location.pathname}?filter=${value.filter}&page=${value.page}`
       );
     }
   },
@@ -316,7 +333,7 @@ export default ({
     }
 
     if (windowData.page) {
-      this.page = windowData.page;
+      this.page = +windowData.page;
     }
 
     const tickersData = localStorage.getItem('cryptonomicon-list');
