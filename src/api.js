@@ -1,5 +1,6 @@
 const API_KEY = 'c5b4b0e5148c95f627ed0696c04a3b84a2378071f66cc509ac61aa6f2ca0adc8';
 const AGGREGATE_INDEX = '5';
+const INVALID_SUB = '500';
 
 const tickersHandlers = new Map();
 const ws = new WebSocket(`wss://streamer.cryptocompare.com/v2?api_key=${API_KEY}`);
@@ -37,7 +38,7 @@ function subscribeToTickerOnWs(ticker) {
 
 function unsubscribeFromTickerOnWs(ticker) {
     sendToWebSocket({
-        action: 'SubAdd',
+        action: 'SubRemove',
         subs: [`5~CCCAGG~${ticker}~USD`]
     });
 }
